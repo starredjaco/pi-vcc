@@ -43,6 +43,15 @@ export interface PiVccSettings {
   continueAfterThresholdCompact: boolean;
   /** Write debug snapshot to /tmp/pi-vcc-debug.json on each compaction. */
   debug: boolean;
+  /**
+   * customType values whose custom_message entries are excluded from the
+   * summarizer input. Opt-in (default []). Intended for per-turn boilerplate
+   * injected by other extensions that is regenerated every turn.
+   * Exact match on customType. Filtering happens right before summarization:
+   * cut selection, token calibration, firstKeptEntryId and kept-user-turn
+   * counting are all unaffected.
+   */
+  skipCustomTypes: string[];
 }
 
 export const DEFAULT_SETTINGS: PiVccSettings = {
@@ -50,6 +59,7 @@ export const DEFAULT_SETTINGS: PiVccSettings = {
   smartKeepTail: true,
   continueAfterThresholdCompact: true,
   debug: false,
+  skipCustomTypes: [],
 };
 
 const readJson = (path: string): Record<string, unknown> | null => {
@@ -60,10 +70,17 @@ const readJson = (path: string): Record<string, unknown> | null => {
   }
 };
 
+/** Coerce a config value to string[], failing closed to []. */
+const coerceStringArray = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
 export function loadSettings(): PiVccSettings {
   const parsed = readJson(settingsPath());
   if (!parsed || typeof parsed !== "object") return { ...DEFAULT_SETTINGS };
-  return { ...DEFAULT_SETTINGS, ...(parsed as Partial<PiVccSettings>) };
+  const merged = { ...DEFAULT_SETTINGS, ...(parsed as Partial<PiVccSettings>) };
+  // A blind spread would leak a malformed array value (e.g. a bare string).
+  merged.skipCustomTypes = coerceStringArray(parsed.skipCustomTypes);
+  return merged;
 }
 
 /**

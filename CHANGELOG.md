@@ -4,6 +4,10 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- **`[Files And Changes]` follows recent work** — each category kept the first 10 files and then never changed: the merge with the previous summary re-read the capped list and capped it again oldest-first, so every later file was hidden for the rest of the session. The list now keeps the 10 newest files per category (`(+N earlier)`, as in `[Tracked Commands]`), and a file touched again moves back to the newest end.
+
 ## [0.10.2]
 
 ### Fixes

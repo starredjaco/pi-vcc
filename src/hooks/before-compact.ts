@@ -769,8 +769,11 @@ export const registerBeforeCompactHook = (pi: ExtensionAPI, piVersion: string = 
     for (let i = 0; i < agentMessages.length; i++) {
       const converted = toLlmSafe(agentMessages[i]);
       if (converted.length === 0) continue;
+      // convertToLlm turns an extension's custom_message into a plain user
+      // message; keep the provenance so goals/preferences are not read from it.
+      const fromExtension = agentMessages[i]?.role === "custom";
       convertedWithIndices.push({
-        message: converted[0],
+        message: fromExtension ? { ...converted[0], injected: true } : converted[0],
         sourceIndex: globalIndexById?.get(agentSelectedIds[i]),
       });
     }

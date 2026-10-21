@@ -1,5 +1,5 @@
 import type { NormalizedBlock } from "../types";
-import { nonEmptyLines, clip } from "../core/content";
+import { nonEmptyLines, clip, stripLeadingBullet } from "../core/content";
 import { collapseSkillLines } from "../core/skill-collapse";
 
 const SCOPE_CHANGE_RE =
@@ -26,9 +26,6 @@ const truncateAtTemplate = (lines: string[]): string[] => {
   return idx >= 0 ? lines.slice(0, idx) : lines;
 };
 
-const stripLeadingBullet = (line: string): string =>
-  line.replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").trim();
-
 const MAX_GOAL_CHARS = 200;
 
 const isSubstantiveGoal = (text: string): boolean => {
@@ -49,7 +46,7 @@ export const extractGoals = (blocks: NormalizedBlock[]): string[] => {
   let latestScopeChange: string[] | null = null;
 
   for (const b of blocks) {
-    if (b.kind !== "user") continue;
+    if (b.kind !== "user" || b.injected) continue;
     const rawLines = nonEmptyLines(b.text);
     const truncated = truncateAtTemplate(rawLines);
     const lines = collapseSkillLines(truncated.filter(isSubstantiveGoal))

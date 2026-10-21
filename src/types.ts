@@ -9,7 +9,9 @@ export interface FileOps {
 }
 
 export type NormalizedBlock =
-  | { kind: "user"; text: string; sourceIndex?: number }
+  // `injected`: the text came from an extension custom_message, not from the
+  // user. It still renders in the brief but is no source for goals or preferences.
+  | { kind: "user"; text: string; sourceIndex?: number; injected?: boolean }
   | { kind: "assistant"; text: string; sourceIndex?: number }
   | { kind: "tool_call"; name: string; args: Record<string, unknown>; sourceIndex?: number }
   | { kind: "tool_result"; name: string; text: string; sourceIndex?: number }

@@ -83,4 +83,20 @@ describe("extractGoals", () => {
     expect(goals[0]).toContain("Fix the authentication");
     expect(goals.some((g) => g === "ok")).toBe(false);
   });
+
+  it("reads no goal from an extension-injected user block", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "user", text: "Relay done.\n(If a reply is expected, call agent_send with to=\"peer\")", injected: true },
+      { kind: "user", text: "Fix the login bug" },
+    ];
+    expect(extractGoals(blocks)).toEqual(["Fix the login bug"]);
+  });
+
+  it("keeps a scope change from the user but not from an injected block", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "user", text: "Fix the login bug" },
+      { kind: "user", text: "Instead, update the session token refresh logic", injected: true },
+    ];
+    expect(extractGoals(blocks)).toEqual(["Fix the login bug"]);
+  });
 });

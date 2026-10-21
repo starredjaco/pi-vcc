@@ -4,6 +4,11 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- **Extension messages no longer become the session goal or preferences** — a `custom_message` is turned into a plain user message before summarizing, so a relayed notice or a job-finished line was read as the user's goal, scope change or preference. The hook now marks these messages as injected: they still appear in the brief transcript, but `[Session Goal]` and `[User Preferences]` read only what the user wrote.
+- **A numbered or bulleted rule reads cleanly in `[User Preferences]`** — the list marker (`5. `) is stripped, as `[Session Goal]` already did.
+
 ## [0.10.2]
 
 ### Fixes

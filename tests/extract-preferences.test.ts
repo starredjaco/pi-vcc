@@ -27,4 +27,18 @@ describe("extractPreferences", () => {
     ];
     expect(extractPreferences(blocks).length).toBe(1);
   });
+
+  it("ignores extension-injected user blocks", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "user", text: "Never run reviewer children during a window", injected: true },
+    ];
+    expect(extractPreferences(blocks)).toEqual([]);
+  });
+
+  it("strips the list marker from a numbered rule", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "user", text: "Rules:\n4. Commit often\n5. Never run reviewer children during a window" },
+    ];
+    expect(extractPreferences(blocks)).toEqual(["Never run reviewer children during a window"]);
+  });
 });

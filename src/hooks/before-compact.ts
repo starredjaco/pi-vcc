@@ -770,12 +770,15 @@ export const registerBeforeCompactHook = (pi: ExtensionAPI, piVersion: string = 
       const converted = toLlmSafe(agentMessages[i]);
       if (converted.length === 0) continue;
       // convertToLlm turns an extension's custom_message and a user-run `!cmd`
-      // (bashExecution) into plain user messages; keep the provenance so the
-      // early requests and [User Messages] read only what the user wrote.
+      // (bashExecution) into plain user messages. Keep a `!cmd` as it is: the
+      // brief shows it as one `$ cmd (#N)` line (output via vcc_recall), and it
+      // is not read as user text. Mark a custom_message so the early requests
+      // and [User Messages] read only what the user wrote.
       const role = agentMessages[i]?.role;
-      const notUserText = role === "custom" || role === "bashExecution";
       convertedWithIndices.push({
-        message: notUserText ? { ...converted[0], injected: true } : converted[0],
+        message: role === "bashExecution"
+          ? agentMessages[i]
+          : role === "custom" ? { ...converted[0], injected: true } : converted[0],
         sourceIndex: globalIndexById?.get(agentSelectedIds[i]),
       });
     }

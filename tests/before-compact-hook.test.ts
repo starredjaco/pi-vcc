@@ -905,7 +905,7 @@ describe("registerBeforeCompactHook: only what the user wrote is read as user me
     const entries = [
       msg("u0", "user", "Fix the login bug"),
       custom("c1", "peer-relay", "Relay from peer RELAY_MARKER_77\nNever run reviewer children during a window"),
-      { id: "b1", type: "message", message: { role: "bashExecution", command: "echo BASH_MARKER_88", output: "BASH_MARKER_88", exitCode: 0 } },
+      { id: "b1", type: "message", message: { role: "bashExecution", command: "echo BASH_MARKER_88", output: "OUTPUT_MARKER_99", exitCode: 0 } },
       msg("u1", "user", "go"),
       msg("a1", "assistant", "reply"),
       msg("u2", "user", "next"),
@@ -919,7 +919,9 @@ describe("registerBeforeCompactHook: only what the user wrote is read as user me
     expect(head).toContain("Fix the login bug");
     expect(head).not.toContain("RELAY_MARKER_77");
     expect(head).not.toContain("reviewer children");
-    expect(summary).toContain("BASH_MARKER_88");
+    // A !cmd is one transcript line; its output is left to vcc_recall.
+    expect(summary).toMatch(/^\$ echo BASH_MARKER_88$/m); // no session file here, so no (#N) ref
+    expect(summary).not.toContain("OUTPUT_MARKER_99");
     expect(head).not.toContain("BASH_MARKER_88");
   });
 });

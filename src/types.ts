@@ -9,8 +9,9 @@ export interface FileOps {
 }
 
 export type NormalizedBlock =
-  // `injected`: the text came from an extension custom_message, not from the
-  // user. It still renders in the brief but is no source for goals or preferences.
+  // `injected`: the user did not write the text (an extension custom_message, or
+  // a user-run `!cmd` and its output). It renders in the brief but is not read
+  // into [Early Session Requests] or [User Messages].
   | { kind: "user"; text: string; sourceIndex?: number; injected?: boolean }
   | { kind: "assistant"; text: string; sourceIndex?: number }
   | { kind: "tool_call"; name: string; args: Record<string, unknown>; sourceIndex?: number }

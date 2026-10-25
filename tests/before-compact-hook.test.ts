@@ -893,18 +893,19 @@ describe("registerBeforeCompactHook: custom_message reaches the summarizer", () 
   });
 });
 
-describe("registerBeforeCompactHook: extension messages are not goal or preference sources", () => {
+describe("registerBeforeCompactHook: only what the user wrote is read as user messages", () => {
   afterEach(() => {
     if (existsSync(CONFIG_PATH)) unlinkSync(CONFIG_PATH);
   });
 
-  test("custom_message text stays in the transcript but out of Session Goal and User Messages", () => {
+  test("extension messages and !cmd runs stay in the transcript but out of the user sections", () => {
     setConfig({ overrideDefaultCompaction: true });
     const { pi, invokeBefore } = createMockPi();
     registerBeforeCompactHook(pi);
     const entries = [
       msg("u0", "user", "Fix the login bug"),
       custom("c1", "peer-relay", "Relay from peer RELAY_MARKER_77\nNever run reviewer children during a window"),
+      { id: "b1", type: "message", message: { role: "bashExecution", command: "echo BASH_MARKER_88", output: "BASH_MARKER_88", exitCode: 0 } },
       msg("u1", "user", "go"),
       msg("a1", "assistant", "reply"),
       msg("u2", "user", "next"),
@@ -918,6 +919,8 @@ describe("registerBeforeCompactHook: extension messages are not goal or preferen
     expect(head).toContain("Fix the login bug");
     expect(head).not.toContain("RELAY_MARKER_77");
     expect(head).not.toContain("reviewer children");
+    expect(summary).toContain("BASH_MARKER_88");
+    expect(head).not.toContain("BASH_MARKER_88");
   });
 });
 

@@ -4,6 +4,12 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- **Transcript text no longer becomes a summary section** — the merge with the previous summary looked for `[Tracked Commands]`, `[Commits]` and the other headers anywhere in the text, transcript included. A transcript line that started with or mentioned one of those names became a section of junk text (even with `trackCommands` empty), and every later compaction copied it again. A header now counts only as a line of its own before the transcript. Summaries already carrying such junk drop it at the next compaction.
+- **`[Commits]` lists each commit once, and misses fewer** — a commit seen once without its hash (`git commit -q` prints none) and once with it was listed twice. Commits made with combined flags (`-am`, `-qam`) or with the message on stdin (`-F -` and a heredoc) were not read at all, and only the first of several commits in one command was kept.
+- **Files edited by a multi-file edit tool are listed** — an edit tool that takes a `paths` list instead of one `path` left those files out of `[Files And Changes]` and showed a bare `* edit` in the transcript. They now appear in `Modified`, as `* edit "a.ts" +2` in the transcript, and in `vcc_recall` (`mode:touched` and file search).
+
 ## [0.11.0]
 
 ### Changes

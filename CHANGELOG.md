@@ -10,8 +10,8 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ### Fixes
 
-- **`[Files And Changes]` follows recent work** — each category kept the first 10 files and then never changed: the merge with the previous summary re-read the capped list and capped it again oldest-first, so every later file was hidden for the rest of the session. The list now keeps the 10 newest files per category (`(+N earlier)`, as in `[Tracked Commands]`), and a file touched again moves back to the newest end.
-- **Extension messages no longer become the session goal or preferences** — a `custom_message` is turned into a plain user message before summarizing, so a relayed notice or a job-finished line was read as the user's goal, scope change or preference. The hook now marks these messages as injected: they still appear in the brief transcript, but `[Early Session Requests]` and `[User Messages]` read only what the user wrote.
+- **`[Files And Changes]` follows recent work** — each category kept the first 10 files and then never changed: the merge with the previous summary re-read the capped list and capped it again oldest-first, so every later file was hidden for the rest of the session. The list now keeps the 10 newest files per category (`(+N earlier)`, as in `[Tracked Commands]`), and a file touched again moves back to the newest end. By @zbrdc (#54).
+- **Extension messages no longer become the session goal or preferences** — a `custom_message` is turned into a plain user message before summarizing, so a relayed notice or a job-finished line was read as the user's goal, scope change or preference. The hook now marks these messages as injected: they still appear in the brief transcript, but `[Early Session Requests]` and `[User Messages]` read only what the user wrote. By @zbrdc (#55).
 - **Long items from the latest turn survive the merge** — from the second compaction on, a header item longer than one line (a long goal, a long file list) lost everything after its first line, so most modified files and the end of long goals went missing. Both the previous and the new summary are now rejoined before merging.
 
 ## [0.10.2]

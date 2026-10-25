@@ -93,25 +93,39 @@ describe("extractCommits", () => {
     expect(extractCommits(blocks)).toEqual([{ hash: "5416801", message: "fix: handle empty config" }]);
   });
 
-  it("uses the first commit in an && chain when a later one has a heredoc", () => {
-    const blocks = commitBlocks(
-      `git add a && git commit -m "fix: handle empty config" && git add b && git commit -m "$(cat <<'EOF'\nfeat: add retry to upload client\nEOF\n)"`,
-    );
-    expect(extractCommits(blocks)).toEqual([{ hash: "5416801", message: "fix: handle empty config" }]);
+  it("extracts every commit in an && chain and hashes only the one the output names", () => {
+    const blocks: NormalizedBlock[] = [
+      {
+        kind: "tool_call",
+        name: "bash",
+        args: {
+          command: `git add a && git commit -m "docs: explain git commit -m" && git add b && git commit -m "$(cat <<'EOF'\nfeat: add retry to upload client\nEOF\n)"`,
+        },
+      },
+      { kind: "tool_result", name: "bash", text: "[master 5416801] docs: explain git commit -m\n 1 file changed\n[master 77aa001] unrelated" },
+    ];
+    expect(extractCommits(blocks)).toEqual([
+      { hash: "5416801", message: "docs: explain git commit -m" },
+      { hash: undefined, message: "feat: add retry to upload client" },
+    ]);
   });
 
-  it("extracts heredoc subject when it is the first commit in an && chain", () => {
-    const blocks = commitBlocks(
-      `git commit -m "$(cat <<'EOF'\nfeat: add retry to upload client\nEOF\n)" && git commit -m "fix: handle empty config"`,
-    );
-    expect(extractCommits(blocks)).toEqual([{ hash: "5416801", message: "feat: add retry to upload client" }]);
+  it("hashes quiet commits in a chain from `git log --oneline` lines naming them", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "tool_call", name: "bash", args: { command: 'git commit -q -m "fix: one" && git commit -q -m "fix: two" && git log --oneline -2' } },
+      { kind: "tool_result", name: "bash", text: "bbb2222 (HEAD -> master) fix: two\naaa1111 fix: one" },
+    ];
+    expect(extractCommits(blocks)).toEqual([
+      { hash: "aaa1111", message: "fix: one" },
+      { hash: "bbb2222", message: "fix: two" },
+    ]);
   });
 
-  it("does not take a later commit's heredoc subject when the first one is unparsable", () => {
+  it("does not take a later commit's heredoc subject for an unparsable first commit", () => {
     const blocks = commitBlocks(
       `git commit --author="A <a@b>" -m "$(cat <<'EOF'\nfeat: one\nEOF\n)" && git commit -m "$(cat <<'EOF'\nfeat: two\nEOF\n)"`,
     );
-    expect(extractCommits(blocks)).toEqual([]);
+    expect(extractCommits(blocks)).toEqual([{ hash: undefined, message: "feat: two" }]);
   });
 
   it("extracts heredoc subject with --amend", () => {

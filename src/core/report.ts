@@ -4,7 +4,7 @@ import { clip } from "./content";
 import { normalize } from "./normalize";
 import { renderMessage } from "./render-entries";
 import { searchEntries } from "./search-entries";
-import { type CompileInput, compile } from "./summarize";
+import { type CompileInput, briefOf, compile, sectionOf } from "./summarize";
 import { estimateTokensFromChars } from "./token-estimate";
 
 const SECTION_HEADERS = ["Early Session Requests", "Files And Changes", "Commits", "User Messages"];
@@ -125,13 +125,11 @@ const previewOf = (messages: Message[], edgeCount = 3): string => {
 };
 
 const sectionCountOf = (summary: string): number =>
-  SECTION_HEADERS.filter((header) => summary.includes(`[${header}]`)).length;
+  SECTION_HEADERS.filter((header) => sectionOf(summary, header) !== "").length;
 
 const briefLineCountOf = (summary: string): number => {
-  const sep = "\n\n---\n\n";
-  const idx = summary.indexOf(sep);
-  if (idx < 0) return 0;
-  return summary.slice(idx + sep.length).split("\n").length;
+  const brief = briefOf(summary);
+  return brief ? brief.split("\n").length : 0;
 };
 
 const queryTermsOf = (text: string): string[] =>

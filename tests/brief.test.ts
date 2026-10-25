@@ -42,6 +42,13 @@ describe("compileBrief", () => {
     expect(r).toContain("\nline299 signal299");
   });
 
+  it("names the files of a multi-path edit tool call", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "tool_call", name: "edit", args: { code: "...", paths: ["src/a.ts", "src/b.ts", "src/c.ts"] } },
+    ];
+    expect(compileBrief(blocks)).toContain('* edit "src/a.ts" +2');
+  });
+
   it("renders bash commands as user actions", () => {
     const blocks: NormalizedBlock[] = [
       { kind: "bash", command: "npm test", output: "FAIL noisy output", exitCode: 1, sourceIndex: 2 },

@@ -28,6 +28,13 @@ describe("buildCompactReport", () => {
     expect(report.compression.ratio).toBeGreaterThan(0);
   });
 
+  it("counts a section name quoted in the transcript as no section", () => {
+    const report = buildCompactReport({
+      messages: [userMsg("Fix login bug"), assistantText("[Commits], none made yet")],
+    });
+    expect(report.after.sectionCount).toBe(1);
+  });
+
   it("marks recall probe coverage for early request and file queries", () => {
     const report = buildCompactReport({
       messages: [

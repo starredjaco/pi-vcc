@@ -1,6 +1,7 @@
 import type { Message, ToolCall } from "@earendil-works/pi-ai";
 import type { RenderedEntry } from "./render-entries";
 import { textOf, isContentBearing, extractToolCallText, extractToolCallArgsText, clip } from "./content";
+import { extractPaths } from "./tool-args";
 
 export interface SearchHit extends RenderedEntry {
   /** Context snippet around the first matched term (only when query provided) */
@@ -26,6 +27,8 @@ export interface SearchResult {
 export interface FileTouch {
   index: number;
   toolName: string;
+  /** False when the call names the file but carries no file content to drill into (a multi-path script edit). */
+  drillable?: false;
 }
 
 /** Aggregated view of a file touched across multiple entries. */
@@ -325,23 +328,25 @@ const fullText = (msg: Message): string => {
  * Ported from pi-blackhole (https://github.com/k0valik/pi-blackhole, MIT) by
  * k0valik — a pi-vcc derivative.
  */
-export function getFileIndicators(msg: Message): { toolName: string; path: string; lineCount: number }[] {
+export function getFileIndicators(msg: Message): { toolName: string; path: string; lineCount: number; drillable: boolean }[] {
   if (!msg?.content || typeof msg.content === "string") return [];
-  const indicators: { toolName: string; path: string; lineCount: number }[] = [];
+  const indicators: { toolName: string; path: string; lineCount: number; drillable: boolean }[] = [];
   for (const part of msg.content) {
     if (!part || typeof part !== "object" || part.type !== "toolCall") continue;
     const args = part.arguments as Record<string, unknown>;
-    if (!isContentBearing(args)) continue;
-    const path = ["path", "filePath", "file_path", "file"]
-      .map((k) => args[k])
-      .find((v): v is string => typeof v === "string")!;
+    const drillable = isContentBearing(args);
+    // A multi-path edit tool: a script (`code`) edits the listed `paths`, so there is no per-file content.
+    if (!drillable && !(typeof args.code === "string" && Array.isArray(args.paths))) continue;
     const totalText = extractToolCallText(args);
     const nonEmpty = totalText.split("\n").filter((l) => l.trim().length > 0);
-    indicators.push({
-      toolName: part.name || "",
-      path,
-      lineCount: nonEmpty.length,
-    });
+    for (const path of extractPaths(args)) {
+      indicators.push({
+        toolName: part.name || "",
+        path,
+        lineCount: nonEmpty.length,
+        drillable,
+      });
+    }
   }
   return indicators;
 }
@@ -365,7 +370,11 @@ export function getTouchedFiles(
       if (!map.has(fm.path)) {
         map.set(fm.path, { path: fm.path, entries: [] });
       }
-      (map.get(fm.path) as TouchedFile).entries.push({ index, toolName: fm.toolName });
+      (map.get(fm.path) as TouchedFile).entries.push({
+        index,
+        toolName: fm.toolName,
+        ...(!fm.drillable && { drillable: false as const }),
+      });
     }
   }
   return Array.from(map.values());

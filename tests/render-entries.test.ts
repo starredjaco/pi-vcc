@@ -26,6 +26,12 @@ describe("renderMessage", () => {
     expect(r.summary).toContain("Read(path=a.ts)");
   });
 
+  it("names the files of a multi-path edit tool call", () => {
+    const r = renderMessage(assistantWithToolCall("edit", { code: "...", paths: ["a.ts", "b.ts", "c.ts"] }), 2);
+    expect(r.summary).toContain("edit(path=a.ts +2)");
+    expect(r.files).toEqual(["a.ts", "b.ts", "c.ts"]);
+  });
+
   it("renders tool results without error prefix", () => {
     const r = renderMessage(toolResult("bash", "not found"), 3);
     expect(r.summary).toBe("[bash] not found");

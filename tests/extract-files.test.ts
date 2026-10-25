@@ -29,6 +29,13 @@ describe("extractFiles", () => {
     expect([...r.modified].sort()).toEqual(["a.ts", "b.ts"]);
   });
 
+  it("records every path of a multi-path edit tool", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "tool_call", name: "edit", args: { code: "...", paths: ["a.ts", "b.ts", 3, ""], lang: "node" } },
+    ];
+    expect([...extractFiles(blocks).modified].sort()).toEqual(["a.ts", "b.ts"]);
+  });
+
   it("seeds activity from hook-provided fileOps", () => {
     const r = extractFiles([], { readFiles: ["x.ts"], modifiedFiles: ["y.ts"], createdFiles: [] });
     expect([...r.read]).toEqual(["x.ts"]);

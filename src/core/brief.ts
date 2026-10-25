@@ -1,6 +1,6 @@
 import type { NormalizedBlock } from "../types";
 import { clip } from "./content";
-import { extractPath } from "./tool-args";
+import { extractPaths } from "./tool-args";
 import { collapseSkillText } from "./skill-collapse";
 
 const TRUNCATE_USER = 256;
@@ -223,8 +223,8 @@ const toolOneLiner = (name: string, args: Record<string, unknown>): string => {
   if (field && typeof args[field] === "string") {
     return `* ${name} "${args[field] as string}"`;
   }
-  const path = extractPath(args);
-  if (path) return `* ${name} "${path}"`;
+  const [path, ...more] = extractPaths(args);
+  if (path) return `* ${name} "${path}"${more.length ? ` +${more.length}` : ""}`;
   if (name === "bash" || name === "Bash") {
     const raw = (args.command ?? args.description ?? "") as string;
     const cmd = compressBash(raw);

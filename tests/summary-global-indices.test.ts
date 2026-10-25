@@ -274,6 +274,21 @@ describe("before-compact hook emits session-global refs", () => {
     expect(summary).not.toContain('* edit "beta.txt" (#2)');
   });
 
+  test("a user-run !cmd is one line with its own global ref", () => {
+    const bang = { role: "bashExecution", command: "git status --short", output: " M beta.txt", exitCode: 0, timestamp: 0 };
+    const all = [
+      msgEntry("m1", userMsg("Do the beta thing")),
+      msgEntry("b1", bang as any),
+      msgEntry("m2", betaEdit),
+      msgEntry("m3", toolResult("edit", "done")),
+    ];
+    const { invoke } = hookHarness(all);
+    const summary: string = invoke(all).compaction.summary;
+    expect(summary).toContain("$ git status --short (#1)");
+    expect(summary).not.toContain(" M beta.txt");
+    expect(summary).toContain('* edit "beta.txt" (#2)');
+  });
+
   test("collapse never emits a malformed empty ref for a ref-less duplicate line", () => {
     const dupEdit = assistantWithToolCall("edit", { file_path: "a.ts" });
     const all = [

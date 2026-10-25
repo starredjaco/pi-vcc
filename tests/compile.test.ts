@@ -269,4 +269,42 @@ describe("compile: the recall note across compactions", () => {
     expect(notes(out)).toBe(1);
     expect(out).toContain("[user]\nfix the bucket\n\n[assistant]\ndone");
   });
+
+  describe("file lists follow recent work", () => {
+    const touch = (n: number, from = 0) =>
+      Array.from({ length: n }, (_, i) => assistantWithToolCall("Edit", { path: `/repo/src/f${from + i}.ts` }));
+
+    it("keeps the newest files with an earlier-count marker on a first compaction", () => {
+      const r = compile({ messages: [userMsg("work"), ...touch(15)] });
+      expect(r).toContain("(+5 earlier)");
+      expect(r).toContain("f14.ts");
+      expect(r).not.toContain("f4.ts");
+    });
+
+    it("keeps adding new files across merges instead of freezing on the first ones", () => {
+      const first = compile({ messages: [userMsg("work"), ...touch(10)] });
+      const second = compile({ messages: [userMsg("more"), ...touch(10, 10)], previousSummary: first });
+      expect(second).toContain("f19.ts");
+      expect(second).toContain("(+10 earlier)");
+      expect(second).not.toContain("f0.ts");
+    });
+
+    it("moves a re-edited file back to the newest end", () => {
+      const first = compile({ messages: [userMsg("work"), ...touch(10)] });
+      const second = compile({
+        messages: [userMsg("more"), ...touch(1, 0), ...touch(5, 10)],
+        previousSummary: first,
+      });
+      expect(second).toContain("f0.ts");
+      expect(second).not.toContain("f1.ts");
+    });
+
+    // Summaries written before this fix end the list with "(+N more)".
+    it("drops the old (+N more) marker when merging a summary from an older version", () => {
+      const old = "[Files And Changes]\n- Modified: src/a.ts, src/b.ts (+7 more)";
+      const out = compile({ messages: [userMsg("more"), ...touch(1, 50)], previousSummary: old });
+      expect(out).toContain("- Modified: src/a.ts, src/b.ts, /repo/src/f50.ts");
+      expect(out).not.toContain("more)");
+    });
+  });
 });

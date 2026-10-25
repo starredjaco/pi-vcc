@@ -7,6 +7,7 @@ import { extractPreferences, dedupPreferencesAgainstGoals } from "../extract/pre
 import { extractCommits, formatCommits } from "../extract/commits";
 import { extractTrackedCommands, formatTrackedCommands } from "../extract/tracked-commands";
 import { buildBriefSections, stringifyBrief } from "./brief";
+import { FILES_PER_CATEGORY, capItems } from "./format";
 
 export interface BuildSectionsInput {
   blocks: NormalizedBlock[];
@@ -50,14 +51,10 @@ const formatFileActivity = (blocks: NormalizedBlock[], fileOps?: FileOps): strin
   // Dedup: if already Modified, drop from Created (file existed before)
   for (const p of act.modified) act.created.delete(p);
   const lines: string[] = [];
-  const cap = (set: Set<string>, limit: number) => {
-    const arr = [...set];
-    if (arr.length <= limit) return arr.join(", ");
-    return arr.slice(0, limit).join(", ") + ` (+${arr.length - limit} more)`;
-  };
-  if (act.modified.size > 0) lines.push(`Modified: ${cap(act.modified, 10)}`);
-  if (act.created.size > 0) lines.push(`Created: ${cap(act.created, 10)}`);
-  if (act.read.size > 0) lines.push(`Read: ${cap(act.read, 10)}`);
+  const cap = (set: Set<string>) => capItems([...set], FILES_PER_CATEGORY, ", ");
+  if (act.modified.size > 0) lines.push(`Modified: ${cap(act.modified)}`);
+  if (act.created.size > 0) lines.push(`Created: ${cap(act.created)}`);
+  if (act.read.size > 0) lines.push(`Read: ${cap(act.read)}`);
   return lines;
 };
 

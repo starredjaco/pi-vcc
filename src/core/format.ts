@@ -7,24 +7,20 @@ const section = (title: string, items: string[]): string => {
 };
 
 /**
- * Join a categorized line's items, capped at `limit`. "head" keeps the
- * oldest and ends with "(+N more)" (right for a stable set like files);
- * "tail" keeps the newest and starts with "(+N earlier)" (right for a
- * recency ledger like Tracked Commands). stripCapMarker is its inverse, used
- * when a merge re-reads the line.
+ * Join a categorized line's items (oldest first), keeping the newest `limit`
+ * behind a leading "(+N earlier)". Keeping the oldest instead froze a merged
+ * list on its first entries. stripCapMarker is its inverse, used when a merge
+ * re-reads the line.
  */
-export const capItems = (
-  items: readonly string[],
-  limit: number,
-  joinWith: string,
-  keep: "head" | "tail" = "head",
-): string => {
+export const capItems = (items: readonly string[], limit: number, joinWith: string): string => {
   if (items.length <= limit) return items.join(joinWith);
-  const over = items.length - limit;
-  if (keep === "tail") return `(+${over} earlier) ` + items.slice(-limit).join(joinWith);
-  return items.slice(0, limit).join(joinWith) + ` (+${over} more)`;
+  return `(+${items.length - limit} earlier) ` + items.slice(-limit).join(joinWith);
 };
 
+/** Files listed per Files And Changes category; the newest are kept. */
+export const FILES_PER_CATEGORY = 10;
+
+/** Also strips the trailing "(+N more)" that older versions wrote. */
 export const stripCapMarker = (text: string): string =>
   text.replace(/^\s*\(\+\d+ earlier\)\s*/, "").replace(/\s*\(\+\d+ (?:more|earlier)\)\s*$/, "");
 

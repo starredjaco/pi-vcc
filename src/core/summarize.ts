@@ -52,7 +52,7 @@ const splitSummary = (text: string): { head: string; brief: string } => {
 };
 
 /** Extract a named section from summary text */
-const sectionOf = (text: string, header: string): string => {
+export const sectionOf = (text: string, header: string): string => {
   const lines = splitSummary(text).head.split("\n");
   const start = lines.indexOf(`[${header}]`);
   if (start < 0) return "";
@@ -61,7 +61,7 @@ const sectionOf = (text: string, header: string): string => {
   return lines.slice(start, end).join("\n").trim();
 };
 
-const briefOf = (text: string): string => splitSummary(text).brief;
+export const briefOf = (text: string): string => splitSummary(text).brief;
 
 const isClean = (l: string) => l.startsWith("- ") && !l.includes("<skill") && !l.includes("</skill");
 // Both summaries went through wrapLongLines (the fresh one in formatSummary);

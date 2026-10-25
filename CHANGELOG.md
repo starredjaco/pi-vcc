@@ -4,6 +4,10 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- **Long items from the latest turn survive the merge** — from the second compaction on, a header item longer than one line (a long goal, a long file list) lost everything after its first line, so most modified files and the end of long goals went missing. Both the previous and the new summary are now rejoined before merging.
+
 ## [0.10.2]
 
 ### Fixes

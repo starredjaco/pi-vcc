@@ -25,6 +25,9 @@ export const capItems = (
   return items.slice(0, limit).join(joinWith) + ` (+${over} more)`;
 };
 
+/** Files listed per Files And Changes category; the newest are kept (see capItems "tail"). */
+export const FILES_PER_CATEGORY = 10;
+
 export const stripCapMarker = (text: string): string =>
   text.replace(/^\s*\(\+\d+ earlier\)\s*/, "").replace(/\s*\(\+\d+ (?:more|earlier)\)\s*$/, "");
 

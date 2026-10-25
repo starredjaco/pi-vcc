@@ -263,6 +263,66 @@ describe("compile with trackCommands", () => {
   });
 });
 
+describe("compile: header sections are read from the header area only", () => {
+  const headerArea = (s: string) => s.slice(0, s.indexOf("\n\n---\n\n"));
+  // A transcript line that starts like a header but is not one.
+  const lookalike = "[Tracked Commands], the --- separators are the hint for the model";
+
+  it("a transcript line starting with a header name never becomes a section", () => {
+    let summary: string | undefined;
+    for (let round = 1; round <= 3; round++) {
+      summary = compile({
+        previousSummary: summary,
+        messages: [userMsg(`round ${round} question`), assistantText(round === 1 ? lookalike : `round ${round} answer`)],
+      });
+    }
+    expect(headerArea(summary!)).not.toContain("Tracked Commands");
+    expect(summary!.split(lookalike)).toHaveLength(2);
+  });
+
+  it("drops lookalike lines copied into the header area by an older version, without leaking into Commits", () => {
+    const previousSummary = [
+      "[Commits]\n- abc1234: first",
+      `${lookalike}\n- a bullet of that copied transcript`,
+      "[User Messages]\n- old request",
+    ].join("\n\n") + "\n\n---\n\n[user]\nold request";
+    const out = compile({ previousSummary, messages: [assistantText("ok")] });
+    expect(headerArea(out)).toBe("[Commits]\n- abc1234: first\n\n[User Messages]\n- old request");
+  });
+});
+
+describe("compile: Commits across compactions", () => {
+  const commit = (message: string, output: string) => [
+    assistantWithToolCall("bash", { command: `git commit -m "${message}"` }),
+    toolResult("bash", output),
+  ];
+  const prevWith = (lines: string[]) => `[Commits]\n${lines.join("\n")}\n\n---\n\n[user]\nhi`;
+
+  it("keeps one line per commit when only one side captured the hash, preferring the hashed line", () => {
+    // Hashed fresh line replaces the hashless one in place.
+    const hashedLater = compile({
+      previousSummary: prevWith(["- docs: X", "- aaaaaaa: other"]),
+      messages: [userMsg("next"), ...commit("docs: X", "[main 3cc34cc] docs: X")],
+    });
+    expect(sectionOf(hashedLater, "Commits")).toBe("- 3cc34cc: docs: X\n- aaaaaaa: other");
+    // Hashless fresh line adds nothing next to the hashed one already kept.
+    const hashlessLater = compile({
+      previousSummary: prevWith(["- 3cc34cc: docs: X", "- aaaaaaa: other"]),
+      messages: [userMsg("next"), ...commit("docs: X", "nothing to report")],
+    });
+    expect(sectionOf(hashlessLater, "Commits")).toBe("- 3cc34cc: docs: X\n- aaaaaaa: other");
+  });
+
+  it("keeps two commits that share a message but not a hash, newest 8", () => {
+    const lines = Array.from({ length: 9 }, (_, i) => `- ${String(i).repeat(7)}: commit ${i}`);
+    const out = compile({
+      previousSummary: prevWith([...lines, "- 1234567: commit 8"]),
+      messages: [userMsg("next"), ...commit("commit 8", "[main 7654321] commit 8")],
+    });
+    expect(sectionOf(out, "Commits").split("\n")).toEqual([...lines.slice(3), "- 1234567: commit 8", "- 7654321: commit 8"]);
+  });
+});
+
 describe("compile fileOps wiring", () => {
   it("renders hook-provided file ops in the summary", () => {
     // Guards the seam: CompileInput.fileOps -> buildSections -> extractFiles.

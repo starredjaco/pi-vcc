@@ -33,32 +33,35 @@ const HEADER_NAMES = [EARLY, "Files And Changes", "Commits", "Tracked Commands",
 
 const SEPARATOR = "\n\n---\n\n";
 
-// Header sections are "[Title Case]"; the brief transcript's blocks are
-// "[user]" / "[assistant]". Matching the shape, not a list of names, also
-// bounds sections written by older versions (e.g. [Outstanding Context]).
-const NEXT_HEADER_RE = /\n\n\[[A-Z][^\]\n]*\]\n/;
+// A header section is a "[Title Case]" line standing alone in the header area
+// (the text before the first separator) plus the lines up to the next blank
+// line; sections are joined by blank lines and have none inside. The brief
+// transcript's blocks are "[user]" / "[assistant]", and a transcript line can
+// start with "[Some Title]" followed by more text, so a header is never found
+// by searching the text for "[Title]". Matching the shape, not a list of names,
+// also bounds sections written by older versions (e.g. [Outstanding Context]).
+const HEADER_LINE_RE = /^\[[A-Z][^\]\n]*\]$/;
+
+/** Header area and brief transcript. Without a leading header line the whole
+ * text is the brief; header sections only (no separator) have no brief. */
+const splitSummary = (text: string): { head: string; brief: string } => {
+  if (!HEADER_LINE_RE.test(text.split("\n", 1)[0])) return { head: "", brief: text.trim() };
+  const idx = text.indexOf(SEPARATOR);
+  if (idx < 0) return { head: text, brief: "" };
+  return { head: text.slice(0, idx), brief: text.slice(idx + SEPARATOR.length).trim() };
+};
 
 /** Extract a named section from summary text */
 const sectionOf = (text: string, header: string): string => {
-  const tag = `[${header}]`;
-  const start = text.indexOf(tag);
+  const lines = splitSummary(text).head.split("\n");
+  const start = lines.indexOf(`[${header}]`);
   if (start < 0) return "";
-  const after = text.slice(start);
-  const nextHeader = after.slice(tag.length).search(NEXT_HEADER_RE);
-  const nextSep = after.indexOf(SEPARATOR);
-  const candidates = [nextHeader >= 0 ? nextHeader + tag.length : -1, nextSep].filter((n) => n > 0);
-  const end = candidates.length > 0 ? Math.min(...candidates) : after.length;
-  return after.slice(0, end).trim();
+  let end = start + 1;
+  while (end < lines.length && lines[end].trim() !== "") end++;
+  return lines.slice(start, end).join("\n").trim();
 };
 
-/** The brief transcript: after the separator, or the whole text when there
- * are no header sections. */
-const briefOf = (text: string): string => {
-  if (!/^\[[A-Z]/.test(text)) return text.trim();
-  const idx = text.indexOf(SEPARATOR);
-  if (idx < 0) return "";
-  return text.slice(idx + SEPARATOR.length).trim();
-};
+const briefOf = (text: string): string => splitSummary(text).brief;
 
 const isClean = (l: string) => l.startsWith("- ") && !l.includes("<skill") && !l.includes("</skill");
 // Both summaries went through wrapLongLines (the fresh one in formatSummary);
@@ -76,6 +79,29 @@ const pinnedEarlyRequests = (prev: string): string[] => {
   if (early.length > 0) return early.slice(0, EARLY_REQUESTS_KEPT);
   const goal = unwrapSection(prev, "Session Goal").split("\n").find((l) => isClean(l) && !/^- \[[^\]]*\]$/.test(l));
   return goal ? [goal] : [];
+};
+
+const COMMITS_CAP = 8;
+const COMMIT_HASH_RE = /^- [0-9a-f]{7,12}: /;
+const bareCommit = (line: string): string => line.replace(COMMIT_HASH_RE, "- ");
+
+/** One line per commit, first-seen order. A hashless line is the same commit
+ * as a hashed line with its message (one side did not capture the hash): keep
+ * the hashed one, in the earlier line's place. */
+const dedupCommitLines = (lines: string[]): string[] => {
+  const out: string[] = [];
+  for (const line of lines) {
+    if (out.includes(line)) continue;
+    const bare = bareCommit(line);
+    if (COMMIT_HASH_RE.test(line)) {
+      const hashless = out.findIndex((o) => o === bare);
+      if (hashless >= 0) out[hashless] = line;
+      else out.push(line);
+    } else if (!out.some((o) => bareCommit(o) === bare)) {
+      out.push(line);
+    }
+  }
+  return out;
 };
 
 /** Merge a header section */
@@ -104,10 +130,8 @@ const mergeHeaderSection = (header: string, prev: string, fresh: string): string
     return `[${header}]\n${keepNewestUserMessages([...prevLines, ...freshLines]).join("\n")}`;
   }
 
-  // Commits: line-level dedup, cap
-  const combined = [...new Set([...prevLines, ...freshLines])];
-  const CAP = 8;
-  const capped = combined.length > CAP ? combined.slice(-CAP) : combined;
+  // Commits: one line per commit, cap
+  const capped = dedupCommitLines([...prevLines, ...freshLines]).slice(-COMMITS_CAP);
   if (capped.length === 0) return "";
   return `[${header}]\n${capped.join("\n")}`;
 };

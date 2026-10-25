@@ -338,7 +338,7 @@ const runTouched = (page: number | undefined, view: RecallView): string => {
   const text = formatTouchedOutput(touched, page);
   const start = (Math.max(1, page ?? 1) - 1) * TOUCHED_PAGE_SIZE;
   for (const tf of touched.slice(start, start + TOUCHED_PAGE_SIZE)) {
-    const write = [...tf.entries].reverse().find((e) => WRITES_FILE.test(e.toolName));
+    const write = [...tf.entries].reverse().find((e) => e.drillable !== false && WRITES_FILE.test(e.toolName));
     if (!write) continue;
     const name = tf.path.replace(/\\/g, "/").split("/").pop();
     return `${text}\n--- File content at an entry: query:'#${write.index}:${name}' ---`;

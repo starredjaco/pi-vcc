@@ -94,6 +94,23 @@ describe("vcc_recall mode:touched", () => {
     }
   });
 
+  it("lists the files of a multi-path script edit, without offering it as drill-down content", async () => {
+    const entries = [
+      toolMsg("m0", "write", { path: "src/a.ts", content: "one\ntwo" }),
+      toolMsg("m1", "edit", { code: "patch()", paths: ["src/a.ts", "src/b.ts"] }),
+    ];
+    const { dir, file, ids } = makeSession(entries);
+    try {
+      const tool = register();
+      const out = await invoke(tool, file, ids, { mode: "touched" });
+      expect(out).toContain("src/b.ts    #1 (edit)");
+      // The ready drill-down call must point at the entry that holds file content (#0), not the script edit.
+      expect(out).toContain("query:'#0:a.ts'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("empty session has no touchable files", async () => {
     const entries = [userMsg("m0", "hello"), userMsg("m1", "world")];
     const { dir, file, ids } = makeSession(entries);

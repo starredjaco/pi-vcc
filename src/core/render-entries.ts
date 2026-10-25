@@ -1,7 +1,6 @@
 import type { Message, ToolCall } from "@earendil-works/pi-ai";
 import { clip, textOf } from "./content";
-import { summarizeToolArgs } from "./tool-args";
-import { extractPath } from "./tool-args";
+import { summarizeToolArgs, extractPaths } from "./tool-args";
 
 export interface RenderedEntry {
   index: number;
@@ -22,9 +21,7 @@ const toolCalls = (content: Message["content"]): string => {
 };
 
 const extractFilesFromContent = (content: Message["content"]): string[] => {
-  return toolCallParts(content)
-    .map((c) => extractPath(c.arguments))
-    .filter((p): p is string => p !== null);
+  return toolCallParts(content).flatMap((c) => extractPaths(c.arguments));
 };
 
 export const renderMessage = (msg: Message, index: number, full = false): RenderedEntry => {

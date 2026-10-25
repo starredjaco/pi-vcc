@@ -17,8 +17,8 @@ export const extractPaths = (args: Record<string, unknown>): string[] => {
 };
 
 export const summarizeToolArgs = (args: Record<string, unknown>): string => {
-  const path = extractPath(args);
-  if (path) return `path=${path}`;
+  const [path, ...more] = extractPaths(args);
+  if (path) return `path=${path}${more.length ? ` +${more.length}` : ""}`;
   if (typeof args.command === "string") return `command=${args.command}`;
   if (typeof args.query === "string") return `query=${args.query}`;
   return Object.keys(args).join(", ");

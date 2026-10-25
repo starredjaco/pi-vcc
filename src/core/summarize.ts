@@ -208,12 +208,11 @@ const mergePrevious = (prev: string, fresh: string, options: { preserveFreshBrie
   // Merge header sections
   const headers = HEADER_NAMES
     .map((header) => {
-      const freshSec = sectionOf(fresh, header);
-      // The stored summary went through wrapLongLines; rejoin each item's
-      // indented continuation lines so the per-section merges, which read
-      // only "- " lines, see whole items.
-      const prevSec = sectionOf(prev, header).replace(/\n[ \t]+(?=\S)/g, " ");
-      return mergeHeaderSection(header, prevSec, freshSec);
+      // Both summaries went through wrapLongLines (the fresh one in
+      // formatSummary); rejoin each item's indented continuation lines so the
+      // per-section merges, which read only "- " lines, see whole items.
+      const unwrap = (text: string) => sectionOf(text, header).replace(/\n[ \t]+(?=\S)/g, " ");
+      return mergeHeaderSection(header, unwrap(prev), unwrap(fresh));
     })
     .filter(Boolean);
 

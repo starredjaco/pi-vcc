@@ -116,6 +116,21 @@ describe("compile merge of wrapped header sections", () => {
     const r = compile({ previousSummary: first, messages: [userMsg("also update the README for the queue workers")] });
     expect(sectionOf(r, "Session Goal")).toContain(goal);
   });
+
+  it("keeps wrapped items of the new turn", () => {
+    // The fresh summary is wrapped before the merge too. Both sides need the
+    // section: with one side empty the merge returns the other unchanged.
+    const goal =
+      "Please migrate the billing service from the legacy cron scheduler to the new queue workers and keep the retry semantics identical for failed invoices";
+    const paths = Array.from({ length: 8 }, (_, i) => `src/some/deeply/nested/module-${i}/implementation-${i}.ts`);
+    const r = compile({
+      previousSummary: compile({ messages: [userMsg("set up the project"), assistantWithToolCall("edit", { path: "a.ts", edits: [] })] }),
+      messages: [userMsg(goal), ...paths.map((path) => assistantWithToolCall("edit", { path, edits: [] }))],
+    });
+    expect(sectionOf(r, "Session Goal")).toContain(goal);
+    const files = sectionOf(r, "Files And Changes");
+    for (let i = 0; i < 8; i++) expect(files).toContain(`implementation-${i}.ts`);
+  });
 });
 
 describe("compile with trackCommands", () => {

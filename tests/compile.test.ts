@@ -298,5 +298,13 @@ describe("compile: the recall note across compactions", () => {
       expect(second).toContain("f0.ts");
       expect(second).not.toContain("f1.ts");
     });
+
+    // Summaries written before this fix end the list with "(+N more)".
+    it("drops the old (+N more) marker when merging a summary from an older version", () => {
+      const old = "[Files And Changes]\n- Modified: src/a.ts, src/b.ts (+7 more)";
+      const out = compile({ messages: [userMsg("more"), ...touch(1, 50)], previousSummary: old });
+      expect(out).toContain("- Modified: src/a.ts, src/b.ts, /repo/src/f50.ts");
+      expect(out).not.toContain("more)");
+    });
   });
 });

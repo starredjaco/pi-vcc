@@ -4,9 +4,11 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0]
+
 ### Changes
 
-- **Summary sections no longer depend on English wording** — `[Session Goal]` and `[User Preferences]` picked lines by English keywords (`fix`, `instead`, `always`, `prefer`…), so in another language they stayed empty or kept the wrong lines, and `[Outstanding Context]` kept any line containing words like `failed`. `[Session Goal]` is replaced by `[Early Session Requests]`: the session's first 3 user messages, as written, kept across compactions. A new `[User Messages]` section lists the 15 newest later messages as written, replacing `[Scope change]` and `[User Preferences]`. A command the user runs with `!` is not counted as one of their messages: the transcript shows it as one `$ cmd (#N)` line, and `vcc_recall` opens its output. `[Outstanding Context]` is removed; recent errors are still in the transcript. A summary written by an older version is still read: its first `[Session Goal]` line becomes the early request and the removed sections are dropped.
+- **Summary sections no longer depend on English wording** — `[Session Goal]` and `[User Preferences]` picked lines by English keywords (`fix`, `instead`, `always`, `prefer`…), so in another language they stayed empty or kept the wrong lines, and `[Outstanding Context]` kept any line containing words like `failed`. `[Session Goal]` is replaced by `[Early Session Requests]`: the session's first 3 user messages, as written, kept across compactions. A new `[User Messages]` section lists the 15 newest later messages as written, replacing `[Scope change]` and `[User Preferences]`. A command the user runs with `!` is not counted as one of their messages: the transcript shows it as one `$ cmd (#N)` line, and `vcc_recall` opens its output. `[Outstanding Context]` is removed; recent errors are still in the transcript. A summary written by an older version is still read: its first `[Session Goal]` line becomes the early request and the removed sections are dropped. (#56, #58, #59)
 
 ### Fixes
 

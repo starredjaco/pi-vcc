@@ -7,7 +7,8 @@ const normalizeOne = (msg: SessionMessageEntry["message"], msgIndex: number | un
   if (msg.role === "user") {
     const blocks: NormalizedBlock[] = [];
     const text = sanitize(textOf(msg.content));
-    if (text) blocks.push({ kind: "user", text, sourceIndex: msgIndex });
+    const injected = (msg as { injected?: boolean }).injected === true;
+    if (text) blocks.push({ kind: "user", text, sourceIndex: msgIndex, ...(injected ? { injected } : {}) });
     if (msg.content && typeof msg.content !== "string") {
       for (const part of msg.content) {
         if (part.type === "image") {

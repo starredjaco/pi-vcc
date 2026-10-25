@@ -3,11 +3,10 @@ import { formatSummary } from "../src/core/format";
 import type { SectionData } from "../src/sections";
 
 const empty: SectionData = {
-  sessionGoal: [],
-  outstandingContext: [],
+  earlyRequests: [],
   filesAndChanges: [],
   commits: [],
-  userPreferences: [],
+  userMessages: [],
   trackedCommands: [],
   briefTranscript: "",
 };
@@ -20,21 +19,21 @@ describe("formatSummary", () => {
   it("formats a single header section", () => {
     const data = {
       ...empty,
-      sessionGoal: ["fix auth bug"],
+      earlyRequests: ["fix auth bug"],
     };
     const r = formatSummary(data);
-    expect(r).toContain("[Session Goal]");
+    expect(r).toContain("[Early Session Requests]");
     expect(r).toContain("- fix auth bug");
   });
 
   it("separates header and brief transcript with ---", () => {
     const data = {
       ...empty,
-      sessionGoal: ["goal"],
+      earlyRequests: ["goal"],
       briefTranscript: "[user]\ndo something",
     };
     const r = formatSummary(data);
-    expect(r).toContain("[Session Goal]");
+    expect(r).toContain("[Early Session Requests]");
     expect(r).toContain("---");
     expect(r).toContain("[user]\ndo something");
   });
@@ -51,12 +50,12 @@ describe("formatSummary", () => {
   it("joins multiple header sections with blank line", () => {
     const data = {
       ...empty,
-      sessionGoal: ["goal"],
-      outstandingContext: ["blocker"],
+      earlyRequests: ["goal"],
+      userMessages: ["next step"],
     };
     const r = formatSummary(data);
-    expect(r).toContain("[Session Goal]");
-    expect(r).toContain("[Outstanding Context]");
+    expect(r).toContain("[Early Session Requests]");
+    expect(r).toContain("[User Messages]");
     expect(r).toContain("\n\n");
   });
 

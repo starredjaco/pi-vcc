@@ -22,13 +22,13 @@ describe("buildCompactReport", () => {
     expect(report.before.topFiles).toContain("auth.ts");
     expect(report.before.preview).toContain("Fix login bug in auth.ts");
     expect(report.after.sectionCount).toBeGreaterThan(0);
-    expect(report.after.summaryPreview).toContain("[Session Goal]");
+    expect(report.after.summaryPreview).toContain("[Early Session Requests]");
     expect(report.after.summaryPreview).toContain('* Read "auth.ts"');
     expect(report.after.briefTranscriptLines).toBeGreaterThan(0);
     expect(report.compression.ratio).toBeGreaterThan(0);
   });
 
-  it("marks recall probe coverage for goal and file queries", () => {
+  it("marks recall probe coverage for early request and file queries", () => {
     const report = buildCompactReport({
       messages: [
         userMsg("Fix login bug in auth.ts"),
@@ -38,8 +38,8 @@ describe("buildCompactReport", () => {
       ],
     });
     expect(report.recall.probes.length).toBeGreaterThanOrEqual(1);
-    const goalProbe = report.recall.probes.find((p) => p.label === "goal");
-    expect(goalProbe?.summaryMentioned).toBe(true);
+    const requestProbe = report.recall.probes.find((p) => p.label === "request");
+    expect(requestProbe?.summaryMentioned).toBe(true);
   });
 
   it("counts recall hits with the probe query", () => {

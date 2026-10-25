@@ -18,6 +18,11 @@ describe("normalize", () => {
     expect(blocks).toEqual([{ kind: "user", text: "fix the bug", sourceIndex: 0 }]);
   });
 
+  it("carries the injected flag onto user blocks", () => {
+    const injected = { ...userMsg("relayed note"), injected: true } as any;
+    expect(normalize([injected])).toEqual([{ kind: "user", text: "relayed note", sourceIndex: 0, injected: true }]);
+  });
+
   it("normalizes assistant text message", () => {
     const blocks = normalize([assistantText("done")]);
     expect(blocks).toEqual([{ kind: "assistant", text: "done", sourceIndex: 0 }]);

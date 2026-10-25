@@ -4,9 +4,15 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+### Changes
+
+- **Summary sections no longer depend on English wording** — `[Session Goal]` and `[User Preferences]` picked lines by English keywords (`fix`, `instead`, `always`, `prefer`…), so in another language they stayed empty or kept the wrong lines, and `[Outstanding Context]` kept any line containing words like `failed`. `[Session Goal]` is replaced by `[Early Session Requests]`: the session's first 3 user messages, as written, kept across compactions. A new `[User Messages]` section lists the 15 newest later messages as written, replacing `[Scope change]` and `[User Preferences]`. A command the user runs with `!` is not counted as one of their messages; it stays in the transcript. `[Outstanding Context]` is removed; recent errors are still in the transcript. A summary written by an older version is still read: its first `[Session Goal]` line becomes the early request and the removed sections are dropped.
+
 ### Fixes
 
-- **`[Files And Changes]` follows recent work** — each category kept the first 10 files and then never changed: the merge with the previous summary re-read the capped list and capped it again oldest-first, so every later file was hidden for the rest of the session. The list now keeps the 10 newest files per category (`(+N earlier)`, as in `[Tracked Commands]`), and a file touched again moves back to the newest end.
+- **`[Files And Changes]` follows recent work** — each category kept the first 10 files and then never changed: the merge with the previous summary re-read the capped list and capped it again oldest-first, so every later file was hidden for the rest of the session. The list now keeps the 10 newest files per category (`(+N earlier)`, as in `[Tracked Commands]`), and a file touched again moves back to the newest end. By @zbrdc (#54).
+- **Extension messages no longer become the session goal or preferences** — a `custom_message` is turned into a plain user message before summarizing, so a relayed notice or a job-finished line was read as the user's goal, scope change or preference. The hook now marks these messages as injected: they still appear in the brief transcript, but `[Early Session Requests]` and `[User Messages]` read only what the user wrote. By @zbrdc (#55).
+- **Long items from the latest turn survive the merge** — from the second compaction on, a header item longer than one line (a long goal, a long file list) lost everything after its first line, so most modified files and the end of long goals went missing. Both the previous and the new summary are now rejoined before merging.
 
 ## [0.10.2]
 

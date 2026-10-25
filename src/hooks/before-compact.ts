@@ -769,8 +769,13 @@ export const registerBeforeCompactHook = (pi: ExtensionAPI, piVersion: string = 
     for (let i = 0; i < agentMessages.length; i++) {
       const converted = toLlmSafe(agentMessages[i]);
       if (converted.length === 0) continue;
+      // convertToLlm turns an extension's custom_message and a user-run `!cmd`
+      // (bashExecution) into plain user messages; keep the provenance so the
+      // early requests and [User Messages] read only what the user wrote.
+      const role = agentMessages[i]?.role;
+      const notUserText = role === "custom" || role === "bashExecution";
       convertedWithIndices.push({
-        message: converted[0],
+        message: notUserText ? { ...converted[0], injected: true } : converted[0],
         sourceIndex: globalIndexById?.get(agentSelectedIds[i]),
       });
     }

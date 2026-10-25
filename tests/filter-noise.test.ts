@@ -50,4 +50,11 @@ describe("filterNoise", () => {
     ];
     expect(filterNoise(blocks)).toHaveLength(2);
   });
+
+  it("keeps the injected flag on cleaned user blocks", () => {
+    const blocks: NormalizedBlock[] = [
+      { kind: "user", text: "<system-reminder>x</system-reminder>relayed note", injected: true },
+    ];
+    expect(filterNoise(blocks)).toEqual([{ kind: "user", text: "relayed note", injected: true }]);
+  });
 });

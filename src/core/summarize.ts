@@ -132,12 +132,11 @@ const formatCategorizedLines = (
   merged: Record<string, Set<string>>,
   categories: readonly string[],
   joinWith: string,
-  itemLimit = 10,
-  keep: "head" | "tail" = "head",
+  itemLimit: number,
 ): string => {
   const lines: string[] = [];
   for (const cat of categories) {
-    if (merged[cat].size > 0) lines.push(`- ${cat}: ${capItems([...merged[cat]], itemLimit, joinWith, keep)}`);
+    if (merged[cat].size > 0) lines.push(`- ${cat}: ${capItems([...merged[cat]], itemLimit, joinWith)}`);
   }
   if (lines.length === 0) return "";
   return `[${header}]\n${lines.join("\n")}`;
@@ -152,7 +151,7 @@ const mergeFileLines = (prev: string, fresh: string): string => {
   const merged = mergeCategorizedLines(FILE_CATEGORIES, prev, fresh, ",", true);
   // Dedup: if already in Modified, drop from Created (file existed before)
   for (const p of merged.Modified) merged.Created.delete(p);
-  return formatCategorizedLines("Files And Changes", merged, FILE_CATEGORIES, ", ", FILES_PER_CATEGORY, "tail");
+  return formatCategorizedLines("Files And Changes", merged, FILE_CATEGORIES, ", ", FILES_PER_CATEGORY);
 };
 
 /** Category names actually present in "- <name>: ..." lines in `text`. */
@@ -173,7 +172,7 @@ const discoverCategoryNames = (text: string): string[] => {
 const mergeTrackedCommandLines = (prev: string, fresh: string): string => {
   const categories = [...new Set([...discoverCategoryNames(prev), ...discoverCategoryNames(fresh)])];
   const merged = mergeCategorizedLines(categories, prev, fresh, COMMAND_SEPARATOR, true);
-  return formatCategorizedLines("Tracked Commands", merged, categories, COMMAND_SEPARATOR, COMMANDS_PER_NAME, "tail");
+  return formatCategorizedLines("Tracked Commands", merged, categories, COMMAND_SEPARATOR, COMMANDS_PER_NAME);
 };
 
 const mergeBriefTranscript = (prev: string, fresh: string): string => {

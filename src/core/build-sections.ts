@@ -51,7 +51,7 @@ const formatFileActivity = (blocks: NormalizedBlock[], fileOps?: FileOps): strin
   // Dedup: if already Modified, drop from Created (file existed before)
   for (const p of act.modified) act.created.delete(p);
   const lines: string[] = [];
-  const cap = (set: Set<string>) => capItems([...set], FILES_PER_CATEGORY, ", ", "tail");
+  const cap = (set: Set<string>) => capItems([...set], FILES_PER_CATEGORY, ", ");
   if (act.modified.size > 0) lines.push(`Modified: ${cap(act.modified)}`);
   if (act.created.size > 0) lines.push(`Created: ${cap(act.created)}`);
   if (act.read.size > 0) lines.push(`Read: ${cap(act.read)}`);

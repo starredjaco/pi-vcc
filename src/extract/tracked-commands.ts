@@ -225,7 +225,7 @@ export const formatTrackedCommands = (act: TrackedCommandActivity): string[] => 
   const lines: string[] = [];
   for (const [name, entries] of act.byCommand) {
     if (entries.size > 0) {
-      lines.push(`${name}: ${capItems([...entries].map(renderEntry), COMMANDS_PER_NAME, COMMAND_SEPARATOR, "tail")}`);
+      lines.push(`${name}: ${capItems([...entries].map(renderEntry), COMMANDS_PER_NAME, COMMAND_SEPARATOR)}`);
     }
   }
   return lines;

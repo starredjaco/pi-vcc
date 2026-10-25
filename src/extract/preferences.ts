@@ -1,5 +1,5 @@
 import type { NormalizedBlock } from "../types";
-import { clip, nonEmptyLines } from "../core/content";
+import { clip, nonEmptyLines, stripLeadingBullet } from "../core/content";
 
 // Tightened patterns: require a clear preference construction, not bare keywords.
 const PREF_PATTERNS = [
@@ -16,11 +16,11 @@ export const extractPreferences = (blocks: NormalizedBlock[]): string[] => {
   const seen = new Set<string>();
 
   for (const b of blocks) {
-    if (b.kind !== "user") continue;
+    if (b.kind !== "user" || b.injected) continue;
 
     let perBlock = 0;
     for (const line of nonEmptyLines(b.text)) {
-      const trimmed = line.trim();
+      const trimmed = stripLeadingBullet(line);
       if (!trimmed || trimmed.length < 5) continue;
       if (trimmed.length > 200) continue;
       // Reject questions.

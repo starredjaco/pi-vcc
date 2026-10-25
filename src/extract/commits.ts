@@ -5,7 +5,11 @@ interface CommitInfo {
   message: string;
 }
 
-const COMMIT_MSG_RE = /git\s+commit[^\n]*?-m\s+(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|\$?'((?:[^'\\]|\\.)*)')/;
+const COMMIT_MSG_RE = /git\s+commit[^\n]*?\s-[A-Za-z]*m\s+(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|\$?'((?:[^'\\]|\\.)*)')/;
+// `-F -` / `--file=-` reads the message from stdin; the heredoc feeding it sits on the same command.
+// A file path after -F cannot be read from the transcript, so it is not matched.
+const STDIN_HEREDOC_COMMIT_RE =
+  /git\s+commit[^\n]*?(?:\s-[A-Za-z]*F|\s--file)(?:\s+|=)-(?=\s)[^\n]*?<<-?\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_]\w*))[^\n]*(?:\r?\n|\\n)/;
 // Match short hash from git output: "[branch hash]" or "main hash" or 7-12 hex
 const HASH_RE = /\b([0-9a-f]{7,12})\b/;
 
@@ -21,7 +25,7 @@ const firstLineOf = (text: string): string => {
 
 // COMMIT_MSG_RE only yields the `$(cat <<...` opener (truncated at the inner quote for <<"DELIM"), so heredoc -m is re-read from the raw command.
 const HEREDOC_COMMIT_CMD_RE =
-  /^git\s+commit[^\n"'&;|]*?-m\s+"\$\(cat\s+<<-?\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_]\w*))(?:\r?\n|\\n)/;
+  /^git\s+commit[^\n"'&;|]*?\s-[A-Za-z]*m\s+"\$\(cat\s+<<-?\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_]\w*))(?:\r?\n|\\n)/;
 
 const firstHeredocBodyLine = (rest: string, delim: string): string => {
   for (const line of linesOf(rest)) {
@@ -34,6 +38,13 @@ const firstHeredocBodyLine = (rest: string, delim: string): string => {
 
 const subjectFromHeredocCmd = (cmd: string): string | null => {
   const m = cmd.match(HEREDOC_COMMIT_CMD_RE);
+  if (!m) return null;
+  const delim = m[1] ?? m[2] ?? m[3] ?? "";
+  return cleanMessage(firstHeredocBodyLine(cmd.slice(m.index! + m[0].length), delim));
+};
+
+const subjectFromStdinHeredoc = (cmd: string): string | null => {
+  const m = cmd.match(STDIN_HEREDOC_COMMIT_RE);
   if (!m) return null;
   const delim = m[1] ?? m[2] ?? m[3] ?? "";
   return cleanMessage(firstHeredocBodyLine(cmd.slice(m.index! + m[0].length), delim));
@@ -52,13 +63,17 @@ export const extractCommits = (blocks: NormalizedBlock[]): CommitInfo[] => {
     const cmd = typeof b.args.command === "string" ? b.args.command : "";
     if (!/\bgit\s+commit\b/.test(cmd)) continue;
     const m = cmd.match(COMMIT_MSG_RE);
-    if (!m) continue;
-    // First -m is `"$(cat <<DELIM ...`: COMMIT_MSG_RE only sees `$(cat <<...`, so read the heredoc body.
-    const heredoc = m[1] !== undefined && /^\$\(cat\s+<</.test(m[1])
-      ? subjectFromHeredocCmd(cmd.slice(m.index!))
-      : null;
-    const message = heredoc ?? firstLineOf(cleanMessage(m[1] ?? m[2] ?? m[3] ?? ""));
-    if (heredoc === null && /^\$\(cat\s+<</.test(message)) continue;
+    let message: string;
+    if (m) {
+      // First -m is `"$(cat <<DELIM ...`: COMMIT_MSG_RE only sees `$(cat <<...`, so read the heredoc body.
+      const heredoc = m[1] !== undefined && /^\$\(cat\s+<</.test(m[1])
+        ? subjectFromHeredocCmd(cmd.slice(m.index!))
+        : null;
+      message = heredoc ?? firstLineOf(cleanMessage(m[1] ?? m[2] ?? m[3] ?? ""));
+      if (heredoc === null && /^\$\(cat\s+<</.test(message)) continue;
+    } else {
+      message = subjectFromStdinHeredoc(cmd) ?? "";
+    }
     if (!message) continue;
 
     let hash: string | undefined;
@@ -75,11 +90,10 @@ export const extractCommits = (blocks: NormalizedBlock[]): CommitInfo[] => {
       if (plain) { hash = plain[1]; break; }
     }
 
-    // Dedup by message+hash
-    const key = `${hash ?? ""}::${message}`;
-    if (!commits.some((c) => `${c.hash ?? ""}::${c.message}` === key)) {
-      commits.push({ hash, message });
-    }
+    // One entry per commit: the same message seen hashless (`-q` prints no hash) and hashed is one commit, keep the hashed.
+    const dup = commits.find((c) => c.message === message && (!c.hash || !hash || c.hash === hash));
+    if (!dup) commits.push({ hash, message });
+    else if (hash && !dup.hash) dup.hash = hash;
   }
 
   return commits;

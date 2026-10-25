@@ -127,4 +127,40 @@ describe("extractCommits", () => {
   it("skips empty heredoc with CRLF line endings", () => {
     expect(extractCommits(commitBlocks(`git commit -m "$(cat <<'EOF'\r\n\r\nEOF\r\n)"`))).toEqual([]);
   });
+
+  // `-q` makes git print no hash, so these commits are hashless.
+  const quietBlocks = (command: string): NormalizedBlock[] => [
+    { kind: "tool_call", name: "bash", args: { command } },
+    { kind: "tool_result", name: "bash", text: "" },
+  ];
+
+  it("extracts the subject from combined short flags ending in m", () => {
+    expect(extractCommits(quietBlocks('git commit -qam "chore: release v0.11.0"'))).toEqual([
+      { hash: undefined, message: "chore: release v0.11.0" },
+    ]);
+  });
+
+  it("extracts the heredoc subject after combined short flags", () => {
+    const cmd = `git commit -qam "$(cat <<'EOF'\nfeat: add retry to upload client\nEOF\n)"`;
+    expect(extractCommits(quietBlocks(cmd))).toEqual([{ hash: undefined, message: "feat: add retry to upload client" }]);
+  });
+
+  it("extracts the subject of a message piped to `-F -` through a heredoc", () => {
+    const cmd = `git commit -q -F - <<'EOF'\nfeat: add retry to upload client\n\nbody\nEOF`;
+    expect(extractCommits(quietBlocks(cmd))).toEqual([{ hash: undefined, message: "feat: add retry to upload client" }]);
+  });
+
+  it("keeps one entry per commit, preferring the hashed one in either order", () => {
+    const hashless = quietBlocks('git commit -q -m "fix: handle empty config"');
+    const hashed = commitBlocks('git commit -m "fix: handle empty config"');
+    const want = [{ hash: "5416801", message: "fix: handle empty config" }];
+    expect(extractCommits([...hashless, ...hashed])).toEqual(want);
+    expect(extractCommits([...hashed, ...hashless])).toEqual(want);
+    // Two commits that share a message but have different hashes stay two.
+    const other = [
+      { kind: "tool_call", name: "bash", args: { command: 'git commit -m "fix: handle empty config"' } },
+      { kind: "tool_result", name: "bash", text: "[master 9999999] commit" },
+    ] as NormalizedBlock[];
+    expect(extractCommits([...hashed, ...other]).map((x) => x.hash)).toEqual(["5416801", "9999999"]);
+  });
 });

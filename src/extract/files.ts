@@ -1,5 +1,5 @@
 import type { FileOps, NormalizedBlock } from "../types";
-import { extractPath } from "../core/tool-args";
+import { extractPaths } from "../core/tool-args";
 
 interface FileActivity {
   read: Set<string>;
@@ -14,7 +14,7 @@ const FILE_READ_TOOLS = new Set([
 ]);
 
 // Multi-file patch tools (apply_patch) carry their paths inside the diff payload,
-// not in a path arg, so extractPath yields nothing for them; those files are
+// not in a path arg, so extractPaths yields nothing for them; those files are
 // recovered from the hook-provided fileOps below.
 const FILE_WRITE_TOOLS = new Set([
   "edit", "write", "edit_file", "write_file",
@@ -67,12 +67,11 @@ export const extractFiles = (
 
   for (const b of blocks) {
     if (b.kind !== "tool_call") continue;
-    const p = extractPath(b.args);
-    if (!p) continue;
-
-    if (matches(FILE_READ_TOOLS, b.name)) act.read.add(p);
-    if (matches(FILE_WRITE_TOOLS, b.name)) act.modified.add(p);
-    if (matches(FILE_CREATE_TOOLS, b.name)) act.created.add(p);
+    for (const p of extractPaths(b.args)) {
+      if (matches(FILE_READ_TOOLS, b.name)) act.read.add(p);
+      if (matches(FILE_WRITE_TOOLS, b.name)) act.modified.add(p);
+      if (matches(FILE_CREATE_TOOLS, b.name)) act.created.add(p);
+    }
   }
 
   const all = [...act.read, ...act.modified, ...act.created];

@@ -227,7 +227,7 @@ describe("before-compact hook emits session-global refs", () => {
     ];
     const { invoke } = hookHarness(all);
     const result = invoke(all, {
-      previousSummary: "[Session Goal]\n- Inspect the alpha fixture",
+      previousSummary: "[Early Session Requests]\n- Inspect the alpha fixture",
     });
     expect(result.compaction).toBeDefined();
     expect(result.compaction.details.version).toBe(2);

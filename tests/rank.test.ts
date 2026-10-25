@@ -157,7 +157,7 @@ describe("section-aware brief ranking prototype", () => {
     });
 
     expect(ranked.length).toBeLessThan(baseline.length);
-    expect(ranked).toContain("[Session Goal]");
+    expect(ranked).toContain("[Early Session Requests]");
     expect(ranked).toContain("Fix auth bug");
     expect(ranked).toContain('* Edit "src/auth.ts"');
     expect(ranked).toContain('* bash "bun test tests/auth.test.ts"');
@@ -166,7 +166,7 @@ describe("section-aware brief ranking prototype", () => {
 
   it("keeps fresh ranked brief and gives previous brief the remaining budget", () => {
     const previousBrief = Array.from({ length: 200 }, (_, i) => `[user]\nold context ${i}`).join("\n\n");
-    const previousSummary = `[Session Goal]\n- Original goal\n\n---\n\n${previousBrief}`;
+    const previousSummary = `[Early Session Requests]\n- Original goal\n\n---\n\n${previousBrief}`;
     const ranked = compileRanked({
       previousSummary,
       messages: [

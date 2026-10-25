@@ -898,7 +898,7 @@ describe("registerBeforeCompactHook: extension messages are not goal or preferen
     if (existsSync(CONFIG_PATH)) unlinkSync(CONFIG_PATH);
   });
 
-  test("custom_message text stays in the transcript but out of Session Goal and User Preferences", () => {
+  test("custom_message text stays in the transcript but out of Session Goal and User Messages", () => {
     setConfig({ overrideDefaultCompaction: true });
     const { pi, invokeBefore } = createMockPi();
     registerBeforeCompactHook(pi);

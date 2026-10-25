@@ -59,10 +59,9 @@ On a short session `/pi-vcc` can answer "Nothing to compact yet" whatever `keep:
 ### Compacted message structure
 
 ```
-[Session Goal]
-- Fix the authentication bug in login flow
-- [Scope change]
-- Also update the session token refresh logic
+[Early Session Requests]
+- Fix the auth bug, users can't log in after password reset
+- It happens only after a password reset, not after a normal logout
 
 [Files And Changes]
 - Modified: src/auth/session.ts
@@ -74,12 +73,9 @@ On a short session `/pi-vcc` can answer "Nothing to compact yet" whatever `keep:
 [Tracked Commands]
 - docker: docker compose restart api 2>&1
 
-[Outstanding Context]
-- lint check still failing on line 42
-
-[User Preferences]
-- Prefer Vietnamese responses
+[User Messages]
 - Always run tests before committing
+- Also update the session token refresh logic
 
 ---
 
@@ -104,15 +100,14 @@ A section only appears when it has something to say; a session with no git commi
 
 | Section | Contents |
 |---|---|
-| `[Session Goal]` | Initial goal and scope changes |
+| `[Early Session Requests]` | The session's first 3 user messages, as written. Set once; they can be stale later in a long session |
 | `[Files And Changes]` | Files modified, created or read (capped, paths trimmed to a common root) |
 | `[Commits]` | Last 8 commits made in the session (hash + subject) |
 | `[Tracked Commands]` | Recent runs of only the commands listed in `trackCommands` (off by default) |
-| `[Outstanding Context]` | Unresolved errors and pending questions |
-| `[User Preferences]` | Lines like "always...", "never...", "prefer..." from user messages |
+| `[User Messages]` | The 15 newest later user messages, as written (one line each, up to 300 characters) |
 | Brief transcript | The conversation in order, about 120 recent lines, each tool call shortened to one line with a `(#N)` ref |
 
-On the next compaction, the sections are merged with the previous summary and re-capped, and the transcript rolls forward.
+On the next compaction, the sections are merged with the previous summary and re-capped, and the transcript rolls forward. `[Early Session Requests]` stays as the first summary set it. None of the sections depend on wording, so they work the same in every language.
 
 ## Recall
 

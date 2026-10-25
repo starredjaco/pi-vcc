@@ -7,7 +7,7 @@ import { searchEntries } from "./search-entries";
 import { type CompileInput, compile } from "./summarize";
 import { estimateTokensFromChars } from "./token-estimate";
 
-const SECTION_HEADERS = ["Session Goal", "Files And Changes", "Commits", "Outstanding Context"];
+const SECTION_HEADERS = ["Early Session Requests", "Files And Changes", "Commits", "User Messages"];
 
 interface RoleCounts {
   user: number;
@@ -46,8 +46,7 @@ export interface CompactReport {
     estimatedTokens: number;
     sectionCount: number;
     summaryPreview: string;
-    goalsCount: number;
-    blockersCount: number;
+    earlyRequestsCount: number;
     briefTranscriptLines: number;
   };
   compression: {
@@ -170,9 +169,8 @@ const probesOf = (messages: Message[], summary: string): RecallProbe[] => {
   }
 
   const rawProbes = [
-    { label: "goal", text: data.sessionGoal[0] ?? "" },
+    { label: "request", text: data.earlyRequests[0] ?? "" },
     { label: "file", text: firstFile },
-    { label: "problem", text: data.outstandingContext[0] ?? "" },
   ];
 
   const rendered = messages.map((msg, index) => renderMessage(msg, index));
@@ -215,8 +213,7 @@ export const buildCompactReport = (input: CompileInput): CompactReport => {
       estimatedTokens: estimateTokensFromChars(summary.length),
       sectionCount: sectionCountOf(summary),
       summaryPreview: summary,
-      goalsCount: data.sessionGoal.length,
-      blockersCount: data.outstandingContext.length,
+      earlyRequestsCount: data.earlyRequests.length,
       briefTranscriptLines: briefLineCountOf(summary),
     },
     compression: {

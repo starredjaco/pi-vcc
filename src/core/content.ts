@@ -154,7 +154,3 @@ export const snippet = (text: string, term: string, radius = 60): string | null 
   const suffix = end < text.length ? "..." : "";
   return `${prefix}${text.slice(start, end)}${suffix}`;
 };
-
-/** Drop a leading list marker ("- ", "* ", "+ ", "3. ") so list items read as plain statements. */
-export const stripLeadingBullet = (line: string): string =>
-  line.replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").trim();

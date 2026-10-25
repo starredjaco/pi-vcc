@@ -75,12 +75,11 @@ export interface FormatSummaryOptions {
 export const formatSummary = (data: SectionData, options: FormatSummaryOptions = {}): string => {
   const capBriefTranscript = options.capBriefTranscript ?? true;
   const headerParts = [
-    section("Session Goal", data.sessionGoal),
+    section("Early Session Requests", data.earlyRequests),
     section("Files And Changes", data.filesAndChanges),
     section("Commits", data.commits),
     section("Tracked Commands", data.trackedCommands),
-    section("Outstanding Context", data.outstandingContext),
-    section("User Preferences", data.userPreferences),
+    section("User Messages", data.userMessages),
   ].filter(Boolean);
 
   const parts: string[] = [];

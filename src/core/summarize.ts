@@ -3,6 +3,7 @@ import type { FileOps } from "../types";
 import { normalize } from "./normalize";
 import { filterNoise } from "./filter-noise";
 import { buildSections } from "./build-sections";
+import { EARLY_REQUESTS_KEPT, keepNewestUserMessages } from "../extract/user-messages";
 import { formatSummary, capBrief, capItems, stripCapMarker, BRIEF_MAX_LINES, FILES_PER_CATEGORY, RECALL_NOTE, wrapLongLines } from "./format";
 import { COMMAND_SEPARATOR, COMMANDS_PER_NAME } from "../extract/tracked-commands";
 import { selectRankedBriefBlocks, type BriefRankingOptions } from "./rank";
@@ -27,9 +28,15 @@ export interface RankedCompileInput extends CompileInput {
   ranking?: BriefRankingOptions;
 }
 
-const HEADER_NAMES = ["Session Goal", "Files And Changes", "Commits", "Tracked Commands", "Outstanding Context", "User Preferences"];
+const EARLY = "Early Session Requests";
+const HEADER_NAMES = [EARLY, "Files And Changes", "Commits", "Tracked Commands", "User Messages"];
 
 const SEPARATOR = "\n\n---\n\n";
+
+// Header sections are "[Title Case]"; the brief transcript's blocks are
+// "[user]" / "[assistant]". Matching the shape, not a list of names, also
+// bounds sections written by older versions (e.g. [Outstanding Context]).
+const NEXT_HEADER_RE = /\n\n\[[A-Z][^\]\n]*\]\n/;
 
 /** Extract a named section from summary text */
 const sectionOf = (text: string, header: string): string => {
@@ -37,28 +44,42 @@ const sectionOf = (text: string, header: string): string => {
   const start = text.indexOf(tag);
   if (start < 0) return "";
   const after = text.slice(start);
-  // Find next section header or separator
-  const nextSection = HEADER_NAMES
-    .filter((h) => h !== header)
-    .map((h) => after.indexOf(`[${h}]`))
-    .filter((n) => n > 0);
-  const nextSep = after.indexOf("\n\n---\n\n");
-  const candidates = [...nextSection, ...(nextSep > 0 ? [nextSep] : [])].sort((a, b) => a - b);
-  const end = candidates[0];
-  return (end ? after.slice(0, end) : after).trim();
+  const nextHeader = after.slice(tag.length).search(NEXT_HEADER_RE);
+  const nextSep = after.indexOf(SEPARATOR);
+  const candidates = [nextHeader >= 0 ? nextHeader + tag.length : -1, nextSep].filter((n) => n > 0);
+  const end = candidates.length > 0 ? Math.min(...candidates) : after.length;
+  return after.slice(0, end).trim();
 };
 
-/** Extract the brief transcript part (everything after ---) */
+/** The brief transcript: after the separator, or the whole text when there
+ * are no header sections. */
 const briefOf = (text: string): string => {
+  if (!/^\[[A-Z]/.test(text)) return text.trim();
   const idx = text.indexOf(SEPARATOR);
   if (idx < 0) return "";
   return text.slice(idx + SEPARATOR.length).trim();
 };
 
+const isClean = (l: string) => l.startsWith("- ") && !l.includes("<skill") && !l.includes("</skill");
+// Both summaries went through wrapLongLines (the fresh one in formatSummary);
+// rejoin each item's indented continuation lines so the merges, which read
+// only "- " lines, see whole items.
+const unwrapSection = (text: string, header: string) => sectionOf(text, header).replace(/\n[ \t]+(?=\S)/g, " ");
+
+/**
+ * The previous summary's early requests, kept as they are: the first summary
+ * sets them. An older version's [Session Goal] gives its first real line
+ * (not a "- [skill: x]" / "- [Scope change]" marker).
+ */
+const pinnedEarlyRequests = (prev: string): string[] => {
+  const early = unwrapSection(prev, EARLY).split("\n").filter(isClean);
+  if (early.length > 0) return early.slice(0, EARLY_REQUESTS_KEPT);
+  const goal = unwrapSection(prev, "Session Goal").split("\n").find((l) => isClean(l) && !/^- \[[^\]]*\]$/.test(l));
+  return goal ? [goal] : [];
+};
+
 /** Merge a header section */
 const mergeHeaderSection = (header: string, prev: string, fresh: string): string => {
-  // Outstanding Context is volatile -- always use fresh only
-  if (header === "Outstanding Context") return fresh;
   if (!prev) return fresh;
   if (!fresh) return prev;
 
@@ -76,12 +97,16 @@ const mergeHeaderSection = (header: string, prev: string, fresh: string): string
     return mergeTrackedCommandLines(prev, fresh);
   }
 
-  // Session Goal, User Preferences: line-level dedup, cap
-  const isClean = (l: string) => l.startsWith("- ") && !l.includes("<skill") && !l.includes("</skill");
   const prevLines = prev.split("\n").filter(isClean);
   const freshLines = fresh.split("\n").filter(isClean);
+
+  if (header === "User Messages") {
+    return `[${header}]\n${keepNewestUserMessages([...prevLines, ...freshLines]).join("\n")}`;
+  }
+
+  // Commits: line-level dedup, cap
   const combined = [...new Set([...prevLines, ...freshLines])];
-  const CAP = header === "Session Goal" ? 8 : header === "Commits" ? 8 : 15;
+  const CAP = 8;
   const capped = combined.length > CAP ? combined.slice(-CAP) : combined;
   if (capped.length === 0) return "";
   return `[${header}]\n${capped.join("\n")}`;
@@ -206,13 +231,11 @@ const mergeBriefTranscriptWithFreshBudget = (prev: string, fresh: string): strin
 
 const mergePrevious = (prev: string, fresh: string, options: { preserveFreshBrief?: boolean } = {}): string => {
   // Merge header sections
+  const early = pinnedEarlyRequests(prev);
   const headers = HEADER_NAMES
     .map((header) => {
-      // Both summaries went through wrapLongLines (the fresh one in
-      // formatSummary); rejoin each item's indented continuation lines so the
-      // per-section merges, which read only "- " lines, see whole items.
-      const unwrap = (text: string) => sectionOf(text, header).replace(/\n[ \t]+(?=\S)/g, " ");
-      return mergeHeaderSection(header, unwrap(prev), unwrap(fresh));
+      if (header === EARLY && early.length > 0) return `[${EARLY}]\n${early.join("\n")}`;
+      return mergeHeaderSection(header, unwrapSection(prev, header), unwrapSection(fresh, header));
     })
     .filter(Boolean);
 
@@ -243,13 +266,14 @@ interface CompileWithBriefBlocksOptions {
 const compileWithBriefBlocks = (input: CompileInput, options: CompileWithBriefBlocksOptions = {}): string => {
   const blocks = filterNoise(normalize(input.messages, input.sourceIndices));
   const briefBlocks = options.briefBlocksFor?.(blocks);
-  const data = buildSections({ blocks, briefBlocks, fileOps: input.fileOps, trackCommands: input.trackCommands });
-  const fresh = formatSummary(data, { capBriefTranscript: options.capFreshBrief ?? true });
   // Strip any legacy RECALL_NOTE baked into prev summary (pre-fix format)
   // so merge doesn't re-stack it inside the brief.
   const prev = input.previousSummary
     ? stripRecallNote(input.previousSummary)
     : undefined;
+  const hasEarlyRequests = prev !== undefined && pinnedEarlyRequests(prev).length > 0;
+  const data = buildSections({ blocks, briefBlocks, fileOps: input.fileOps, trackCommands: input.trackCommands, hasEarlyRequests });
+  const fresh = formatSummary(data, { capBriefTranscript: options.capFreshBrief ?? true });
   const merged = prev ? mergePrevious(prev, fresh, { preserveFreshBrief: options.preserveFreshBriefOnMerge }) : fresh;
   if (!merged) return "";
   return wrapLongLines(merged + SEPARATOR + RECALL_NOTE);

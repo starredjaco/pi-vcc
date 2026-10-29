@@ -4,6 +4,8 @@ All notable changes to `@sting8k/pi-vcc` are documented in this file.
 
 ## [Unreleased]
 
+## [0.11.2]
+
 ### Fixes
 
 - **One `vcc_recall` result can no longer flood the context** — a search snippet kept whole lines, so a tool result that was one 2 MB line of base64 (an image) came back in full, and the next request went over the model's limit. Snippet lines are now cut to 300 chars around the match, and every recall result is capped at 50 KB. A clipped result starts with a warning saying how much was cut. `expand` of an entry bigger than that shows its first 50 KB (#63)

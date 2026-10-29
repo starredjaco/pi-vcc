@@ -14,6 +14,9 @@ let dir: string;
 let file: string;
 const ids: string[] = [];
 let blobIndex = -1;
+let longLineIndex = -1;
+// A long single line that is not base64 (minified code, a JSON event): search keeps it.
+const longLine = `${"a1,".repeat(100_000)}needle_mark${"b2,".repeat(100_000)}`;
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "pi-vcc-recall-cap-"));
@@ -29,6 +32,11 @@ beforeAll(() => {
       add({ role: "assistant", content: [{ type: "toolCall", id: "t1", name: "other_tool", arguments: { action: "tail" } }] });
       blobIndex = ids.length;
       add({ role: "toolResult", toolCallId: "t1", toolName: "other_tool", content: [{ type: "text", text: blob }] });
+      continue;
+    }
+    if (i === 40) {
+      longLineIndex = ids.length;
+      add({ role: "user", content: longLine });
       continue;
     }
     add({ role: "user", content: i % 10 === 0 ? `Step ${i}: set max retries to 3` : `Step ${i}: run the tests` });
@@ -50,10 +58,9 @@ const recall = async (params: Record<string, unknown>) => {
 
 describe("vcc_recall output size (issue #63)", () => {
   it("keeps a search snippet of a long single-line entry small", async () => {
-    const term = blob.match(/[A-Za-z0-9]{12}/g)![100];
-    const out = await recall({ query: term });
-    expect(out).toContain(`#${blobIndex} [tool_result]`);
-    expect(out).toContain(term);
+    const out = await recall({ query: "needle_mark" });
+    expect(out).toContain(`#${longLineIndex} [user]`);
+    expect(out).toContain("needle_mark");
     expect(out.length).toBeLessThan(5_000);
     expect(out).not.toContain("Warning: output clipped");
   });
@@ -63,6 +70,7 @@ describe("vcc_recall output size (issue #63)", () => {
     const out = await recall({ query: "max retries" });
     const first = out.match(/^#(\d+) /m)?.[1];
     expect(out.slice(out.indexOf(`#${first} `)).split("\n")[0]).toContain("max retries");
+    expect(out).not.toContain(`#${blobIndex} `);
   });
 
   it("clips an expand over the cap and says so first", async () => {
@@ -87,5 +95,11 @@ describe("search ranking with a long unbroken entry", () => {
     const order = (docs: typeof plain) =>
       searchEntries(docs.map((d) => d.entry) as any, docs.map((d) => d.msg) as any, "max").map((h) => h.index).filter((i) => i !== 9);
     expect(order([...plain, blobDoc as any])).toEqual(order(plain));
+  });
+
+  it("keeps long joined identifiers searchable", () => {
+    const joined = "capturedNormalCompletionRecordOrdinaryObjectCreateDataProperty".repeat(30);
+    const hits = searchEntries([{ index: 0, role: "tool_result", summary: "" }] as any, [{ role: "toolResult", toolName: "bash", content: [{ type: "text", text: joined }] }] as any, "OrdinaryObjectCreate");
+    expect(hits.map((h) => h.index)).toEqual([0]);
   });
 });

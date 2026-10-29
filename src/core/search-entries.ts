@@ -179,16 +179,31 @@ const termFreq = (text: string, t: Term): number => {
   return matches ? matches.length : 0;
 };
 
-/** A "word" longer than this (base64, minified code) counts as one word per this many chars.
- *  Prose, paths and hashes stay under it, so most docs keep their plain word count. */
-const LONG_WORD_CHARS = 100;
-
 const wordCount = (doc: string): number => doc.split(/\s+/).length;
 
-/** Doc length for BM25 in words. Without the long-word rule a 2 MB base64 line is
- *  4 "words" and scores as a very short doc. */
-const docLength = (doc: string): number =>
-  doc.split(/\s+/).reduce((n, w) => n + Math.max(1, Math.ceil(w.length / LONG_WORD_CHARS)), 0);
+/** A run of base64 characters this long can be encoded data (an image, a file). Shorter
+ *  ones (keys, tokens) rarely hold a chance match: a 3-letter term hits about once per
+ *  32k random chars. JSON, code and paths break a run with punctuation. */
+const BASE64_RUN = /[A-Za-z0-9+/=]{1000,}/g;
+
+/** Encoded data mixes digits and both cases (random base64: ~16% / 40% / 40%). Joined
+ *  identifiers, hex and `=====` rules do not, and stay searchable. */
+const looksEncoded = (run: string): boolean => {
+  let digits = 0, upper = 0, lower = 0;
+  for (let i = 0; i < run.length; i++) {
+    const c = run.charCodeAt(i);
+    if (c >= 48 && c <= 57) digits++;
+    else if (c >= 65 && c <= 90) upper++;
+    else if (c >= 97 && c <= 122) lower++;
+  }
+  return digits >= run.length * 0.05 && upper >= run.length * 0.15 && lower >= run.length * 0.15;
+};
+
+/** An entry's text as search sees it: encoded data is dropped, as search engines drop
+ *  overlong tokens. Terms match as substrings, so a short term would hit inside it
+ *  hundreds of times, and it would count as one word of length. */
+const searchableText = (msg: Message | undefined, e: RenderedEntry): string =>
+  (msg ? fullText(msg) : e.summary).replace(BASE64_RUN, (run) => (looksEncoded(run) ? "…" : run));
 
 interface BM25Context {
   n: number;         // total docs
@@ -555,7 +570,7 @@ export const searchEntriesDetailed = (
       checkBudget();
       const e = entries[i];
       const msg = messages[i];
-      const text = msg ? fullText(msg) : e.summary;
+      const text = searchableText(msg, e);
       const filePart = e.files?.join(" ") ?? "";
       const hay = `${e.role} ${text} ${filePart}`;
       if (regex.test(hay)) {
@@ -576,16 +591,14 @@ export const searchEntriesDetailed = (
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
     const msg = messages[i];
-    const text = msg ? fullText(msg) : e.summary;
+    const text = searchableText(msg, e);
     const filePart = e.files?.join(" ") ?? "";
     docs.push(`${e.role} ${text} ${filePart}`);
   }
 
   const compiled = compileTerms(terms);
-  // The average stays in plain words: long words would raise it and shift the
-  // score of every doc. This way only docs that have a long word score differently.
-  const ctx = buildBM25Context(docs, docs.map(wordCount), compiled, checkBudget);
-  const docLens = docs.map(docLength);
+  const docLens = docs.map(wordCount);
+  const ctx = buildBM25Context(docs, docLens, compiled, checkBudget);
 
   const scored: Array<{ hit: SearchHit; score: number }> = [];
   for (let i = 0; i < entries.length; i++) {
@@ -597,7 +610,7 @@ export const searchEntriesDetailed = (
     if (mc === 0) continue;
     // Terms absent from the doc add 0, so scoring only the matched ones gives the same sum in the same order.
     const score = bm25Score(hay, docLens[i], here, ctx);
-    const text = messages[i] ? fullText(messages[i]) : e.summary;
+    const text = searchableText(messages[i], e);
     const snip = lineSnippet(text, snipRe);
     scored.push({
       hit: { ...e, snippet: snip, matchCount: mc },

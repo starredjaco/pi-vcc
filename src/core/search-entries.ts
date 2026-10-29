@@ -179,7 +179,16 @@ const termFreq = (text: string, t: Term): number => {
   return matches ? matches.length : 0;
 };
 
+/** A "word" longer than this (base64, minified code) counts as one word per this many chars.
+ *  Prose, paths and hashes stay under it, so most docs keep their plain word count. */
+const LONG_WORD_CHARS = 100;
+
 const wordCount = (doc: string): number => doc.split(/\s+/).length;
+
+/** Doc length for BM25 in words. Without the long-word rule a 2 MB base64 line is
+ *  4 "words" and scores as a very short doc. */
+const docLength = (doc: string): number =>
+  doc.split(/\s+/).reduce((n, w) => n + Math.max(1, Math.ceil(w.length / LONG_WORD_CHARS)), 0);
 
 interface BM25Context {
   n: number;         // total docs
@@ -231,13 +240,26 @@ const bm25Score = (doc: string, dl: number, terms: Term[], ctx: BM25Context): nu
   return score;
 };
 
+/** Longest snippet line: a longer one is cut to a window around the match, or to its start. */
+const SNIPPET_LINE_CHARS = 300;
+
+const clipLine = (line: string, at: number): string => {
+  if (line.length <= SNIPPET_LINE_CHARS) return line;
+  const start = Math.max(0, Math.min(at - SNIPPET_LINE_CHARS / 2, line.length - SNIPPET_LINE_CHARS));
+  const end = start + SNIPPET_LINE_CHARS;
+  return `${start > 0 ? "…" : ""}${line.slice(start, end)}${end < line.length ? "…" : ""}`;
+};
+
 /** Line-based snippet: ±contextLines around first regex match. */
 const lineSnippet = (text: string, regex: RegExp, contextLines = 2): string | undefined => {
   const lines = text.split("\n");
   let matchIdx = -1;
+  let matchAt = 0;
   for (let i = 0; i < lines.length; i++) {
-    if (regex.test(lines[i])) {
+    const at = lines[i].search(regex);
+    if (at >= 0) {
       matchIdx = i;
+      matchAt = at;
       break;
     }
   }
@@ -245,7 +267,7 @@ const lineSnippet = (text: string, regex: RegExp, contextLines = 2): string | un
 
   const start = Math.max(0, matchIdx - contextLines);
   const end = Math.min(lines.length, matchIdx + contextLines + 1);
-  const slice = lines.slice(start, end);
+  const slice = lines.slice(start, end).map((line, i) => clipLine(line, start + i === matchIdx ? matchAt : 0));
 
   const parts: string[] = [];
   if (start > 0) parts.push(`...(${start} lines above)`);
@@ -560,8 +582,10 @@ export const searchEntriesDetailed = (
   }
 
   const compiled = compileTerms(terms);
-  const docLens = docs.map(wordCount);
-  const ctx = buildBM25Context(docs, docLens, compiled, checkBudget);
+  // The average stays in plain words: long words would raise it and shift the
+  // score of every doc. This way only docs that have a long word score differently.
+  const ctx = buildBM25Context(docs, docs.map(wordCount), compiled, checkBudget);
+  const docLens = docs.map(docLength);
 
   const scored: Array<{ hit: SearchHit; score: number }> = [];
   for (let i = 0; i < entries.length; i++) {
